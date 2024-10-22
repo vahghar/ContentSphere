@@ -2,6 +2,7 @@ import { prismaClient } from "@/app/lib/db";
 import { NextRequest, NextResponse } from "next/server";
 import {z} from "zod"
 const YT_REGEX = new RegExp(/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/(watch\?v=|embed\/|v\/|.+\?v=)?([a-zA-Z0-9_-]{11})$/)
+//@ts-ignore
 import youtubesearchapi from "youtube-search-api"
 
 
