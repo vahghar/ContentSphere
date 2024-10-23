@@ -42,6 +42,4 @@ export async function POST(req: NextRequest){
             status: 403
         })
     }
-
-    const data = UpvoteSchema.parse(await req.json())
 }

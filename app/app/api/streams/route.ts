@@ -41,8 +41,9 @@ export async function POST(req: NextRequest){
             }  
         })
         return NextResponse.json({
-            message: "Added Stream",
-            id: stream.id
+            ...stream,
+            hasUpvoted: false,
+            upvotes: 0
         }
         );
     } catch (error) {
@@ -56,12 +57,36 @@ export async function POST(req: NextRequest){
 
 export async function GET(req: NextRequest){
     const creatorId = req.nextUrl.searchParams.get("creatorId");
+    if(!creatorId){
+        return NextResponse.json({
+            message:"error"
+        },{
+            status:411
+        })
+    }
     const streams = await prismaClient.stream.findMany({
-        where: {
-            userId: creatorId??""
+        where:{
+            userId: creatorId
+        },
+        include:{
+            _count:{
+                select:{
+                    upvotes:true
+                }
+            },
+            upvotes: {
+                where:{
+                    userId: creatorId
+                }
+            }
         }
     })
+
     return NextResponse.json({
-        streams
+        streams: streams.map(({_count, ...rest})=>({
+            ...rest,
+            upvotes:_count.upvotes,
+            haveUpvoted: rest.upvotes.length ? true : false
+        }))
     })
 }
