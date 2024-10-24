@@ -4,6 +4,7 @@ import {z} from "zod"
 const YT_REGEX = new RegExp(/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/(watch\?v=|embed\/|v\/|.+\?v=)?([a-zA-Z0-9_-]{11})$/)
 //@ts-ignore
 import youtubesearchapi from "youtube-search-api"
+import { getServerSession } from "next-auth";
 
 
 const CreateStreamSchema = z.object({
@@ -37,7 +38,7 @@ export async function POST(req: NextRequest){
                 type:"Youtube",
                 title: res.title ??"Can't find video",
                 smallImg: thumbnails.length>1?thumbnails[thumbnails.length-2].url:thumbnails[thumbnails.length-1].url ??"",
-                bigImg: thumbnails[thumbnails.length-1].url ??""
+                bigImg: thumbnails[thumbnails.length-1].url ?? ""
             }  
         })
         return NextResponse.json({
@@ -57,6 +58,20 @@ export async function POST(req: NextRequest){
 
 export async function GET(req: NextRequest){
     const creatorId = req.nextUrl.searchParams.get("creatorId");
+    const session = await getServerSession();
+    const user = await prismaClient.user.findFirst({
+        where:{
+            email: session?.user?.email ??""
+        }
+    })
+
+    if(!user){
+        return NextResponse.json({
+            message:"Unauthenticated"
+        },{
+            status:403
+        })
+    }
     if(!creatorId){
         return NextResponse.json({
             message:"error"
@@ -64,7 +79,7 @@ export async function GET(req: NextRequest){
             status:411
         })
     }
-    const streams = await prismaClient.stream.findMany({
+    const [streams, activeStream] = await Promise.all([await prismaClient.stream.findMany({
         where:{
             userId: creatorId
         },
@@ -76,17 +91,25 @@ export async function GET(req: NextRequest){
             },
             upvotes: {
                 where:{
-                    userId: creatorId
+                    userId: user.id
                 }
             }
         }
-    })
+    }),prismaClient.currentStream.findFirst({
+        where:{
+            userId:creatorId
+        },
+        include:{
+            stream:true
+        }
+    })])
 
     return NextResponse.json({
         streams: streams.map(({_count, ...rest})=>({
             ...rest,
             upvotes:_count.upvotes,
             haveUpvoted: rest.upvotes.length ? true : false
-        }))
+        })),
+        activeStream
     })
 }

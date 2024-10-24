@@ -33,9 +33,9 @@ export default function SongVotingPage() {
 
     const REFRESH_INTERVAL_MS = 10 * 1000
 
-    const creatorId="77d1de2c-1bf7-45ed-847b-7e180e820f36"
+    const creatorId="f7e2b907-ca15-4b4c-ade3-fae274d6e1b7"
 
     return(
-        <StreamView creatorId={creatorId} />
+        <StreamView creatorId={creatorId} playVideo={true} />
     )
 }

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { CardContent, Card } from "@/components/ui/card"
-import { ChevronUp, ChevronDown, Share2 } from "lucide-react"
+import { ChevronUp, ChevronDown, Share2, SkipForward } from "lucide-react"
 import Image from 'next/image'
 import Appbar from '../components/Appbar'
 
@@ -22,11 +22,7 @@ type Stream = {
     downvotes?: number;
 }
 
-export default function StreamView({
-    creatorId
-}:{
-    creatorId:string
-}) {
+export default function Component({creatorId,playVideo = false}: { creatorId?: string, playVideo?:boolean}) {
     const [videoUrl, setVideoUrl] = useState('')
     const [queue, setQueue] = useState<Stream[]>([])
     const [currentVideo, setCurrentVideo] = useState('')
@@ -49,7 +45,7 @@ export default function StreamView({
             }
 
             const data = await res.json()
-            setQueue(data.streams)
+            setQueue(data.streams.sort((a:Stream,b:Stream)=>(a.upvotes ?? 0)<(b.upvotes ?? 0)? 1:-1))
 
             if (data.streams.length > 0 && !currentVideo) {
                 setCurrentVideo(data.streams[0].extractedId)
@@ -61,10 +57,12 @@ export default function StreamView({
 
     useEffect(() => {
         refreshStreams()
-        const interval = setInterval(refreshStreams, REFRESH_INTERVAL_MS)
-    
+        const interval = setInterval(()=>{
+            refreshStreams();
+        },REFRESH_INTERVAL_MS)
+
         return () => clearInterval(interval)
-    }, [])
+    }, [creatorId])
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -74,7 +72,7 @@ export default function StreamView({
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                creatorId: "77d1de2c-1bf7-45ed-847b-7e180e820f36",
+                creatorId: creatorId,
                 url: videoUrl,
             })
         })
@@ -124,13 +122,22 @@ export default function StreamView({
     };
 
     const handleShare = () => {
-        const shareUrl = window.location.href;
+        const shareUrl = `${window.location.hostname}/creator/${creatorId}`;
         navigator.clipboard.writeText(shareUrl).then(() => {
             alert("Link Copied! The page URL has been copied to your clipboard.");
         }).catch((err) => {
             console.error('Failed to copy: ', err);
             alert("Failed to Copy. There was an error copying the link. Please try again.");
         });
+    };
+
+    const handlePlayNext = () => {
+        const currentIndex = queue.findIndex(stream => stream.extractedId === currentVideo);
+        if (currentIndex < queue.length - 1) {
+            const nextVideo = queue[currentIndex + 1];
+            setCurrentVideo(nextVideo.extractedId);
+            setQueue(prevQueue => prevQueue.filter(stream => stream.id !== queue[currentIndex].id));
+        }
     };
 
     return (
@@ -153,8 +160,12 @@ export default function StreamView({
                     src={`https://www.youtube.com/embed/${currentVideo}?autoplay=1&mute=1`}
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                     allowFullScreen
+                    title="Currently playing video"
                   ></iframe>
                 </div>
+                {playVideo && <Button onClick={handlePlayNext} className="w-full bg-purple-600 hover:bg-purple-700 text-white mb-4">
+                  <SkipForward className="mr-2 h-4 w-4" /> Play Next
+                </Button>}
               </div>
     
               <div>
@@ -168,7 +179,7 @@ export default function StreamView({
                       placeholder="Enter YouTube URL"
                       className="flex-1 bg-gray-800 text-white border-gray-700"
                     />
-                    <Button onClick={handleSubmit} type="submit" className="bg-purple-600 hover:bg-purple-700 text-white">
+                    <Button type="submit" className="bg-purple-600 hover:bg-purple-700 text-white">
                       Submit
                     </Button>
                   </div>
